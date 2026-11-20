@@ -131,19 +131,3 @@ This regenerates Train/Validation/Test metrics and confusion matrices **without 
 ```
 
 `<model>` is `svm`, `xgboost`, `bilstm`, or `textcnn`; `<split>` is `train`, `validation`, or `test`. The current ZIP also contains `*_test_scores.csv`, which are optional for sharing, and a `results (backup)/` folder from the smaller 10,000-comment pilot run. Original Kaggle CSVs, `.venv/`, caches, and backup folders should normally be excluded from Git.
-
-## Handoff to teammate: Part B
-
-Part A has already implemented and evaluated all four baselines. **Do not overwrite the Part A models, thresholds, or reported scores.** Suggested Part B work:
-
-1. Tune XGBoost (`max_depth`, `learning_rate`, `n_estimators`, regularisation) using validation performance.
-2. Tune Linear SVM (`C`, TF-IDF settings) to address its train–validation gap.
-3. Investigate label-specific thresholds and minority-label precision/recall; optionally compare ensembles using appropriately calibrated scores.
-4. Compare **baseline vs optimised** models on a consistent data split, then reserve the held-out test set for final evaluation.
-5. Save all Part B work under a separate `part_b/` or `results_part_b/` directory with documented configurations.
-
-**Note:** The saved checkpoints allow inference and baseline comparisons, but changing training hyperparameters usually requires retraining. The original Kaggle labelled data is needed for new training runs.
-
-## Limitations and responsible use
-
-This system was trained on English Wikipedia discussion comments and may not generalise reliably to different platforms, languages, slang, sarcasm, or changing social contexts. Minority labels are difficult to detect reliably. False positives can unfairly flag harmless comments, while false negatives can miss harmful content. Predictions should support human review rather than automatically restrict users.
