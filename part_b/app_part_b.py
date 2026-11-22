@@ -40,7 +40,7 @@ h1,h2,h3 {color:#172b42!important; letter-spacing:-.035em;}
 .small-tag {display:inline-block;font-size:.75rem; font-weight:800;border-radius:30px;padding:6px 11px;background:#def3f6;color:#086b7b;margin-bottom:10px;}
 .section-note {color:#64748b;font-size:.92rem;padding:2px 0 14px;}
 </style>""", unsafe_allow_html=True)
-st.markdown('''<div class="hero"><div class="eyebrow">BMDS2114 · PART B DASHBOARD</div><h1>🛡️ Intelligent Hate Speech & Toxic Content Detection</h1><p>Text & image analysis · Four-model comparison · Validation metrics · Enhanced NLP</p></div>''', unsafe_allow_html=True)
+st.markdown('''<div class="hero"><div class="eyebrow">BMDS2114 · PART B v2 (ROBUST DETECTION)</div><h1>🛡️ Intelligent Hate Speech & Toxic Content Detection</h1><p>Text & image analysis · Four-model comparison · Validation metrics · Robust NLP normalization</p></div>''', unsafe_allow_html=True)
 
 # Exact files from Part A plus optional tuned Part B files.
 def discover_models():
@@ -301,7 +301,7 @@ with st.sidebar:
     page = st.radio("Explore", ["🔍 Detection Studio", "📁 Batch Analysis", "🧠 Compare All Models", "📊 Performance Dashboard"], label_visibility="collapsed")
     st.divider()
     selected = st.selectbox("Active classifier", list(OPTIONS))
-    st.caption("Shortform expansion runs automatically for prediction. Results are experimental.")
+    enable_normalization = st.checkbox("Robust NLP Preprocessing (v2)", value=True, help="Expands slang (e.g. u->you, fr->for real), reduces elongation (e.g. fuckassss->fuckass), removes obfuscation (e.g. f*ck->fuck), and splits compound swear words (e.g. fuckass->fuck ass).")
     st.divider()
     st.caption("Jigsaw has six toxicity labels. Identity hate is not identical to every form of hate speech. Review important decisions manually.")
 
@@ -354,10 +354,13 @@ if page == "🔍 Detection Studio":
         if not text.strip():
             st.warning("Enter text or extract text first.")
         else:
-            processed = process_text(text.strip())
-            if processed != text.strip():
-                st.caption("Text after automatic shortform expansion:")
+            raw_text = text.strip()
+            processed = process_text(raw_text) if enable_normalization else raw_text
+            if enable_normalization and processed != raw_text:
+                st.caption("Text after robust normalization (slang expansion, elongation & compound swear segmentation):")
                 st.code(processed, language=None)
+            elif not enable_normalization:
+                st.info("Normalization disabled: evaluating raw text directly.")
             try:
                 show_details(selected, processed)
             except Exception as ex:
@@ -390,7 +393,7 @@ elif page == "📁 Batch Analysis":
             if st.button("Classify CSV", type="primary"):
                 batch = df.head(500).copy()
                 originals = batch[column].fillna("").astype(str).tolist()
-                cleaned = [process_text(s) if s.strip() else "" for s in originals]
+                cleaned = [process_text(s) if (enable_normalization and s.strip()) else s for s in originals]
                 labels_pred = np.zeros((len(cleaned), len(LABELS)), dtype=bool)
                 valid = [i for i, s in enumerate(cleaned) if s.strip()]
                 progress = st.progress(0, text="Starting batch prediction...")
@@ -430,9 +433,10 @@ elif page == "🧠 Compare All Models":
         if not comment.strip():
             st.warning("Enter a comment first.")
         else:
-            normalized = process_text(comment.strip())
-            if normalized != comment.strip():
-                st.write("**Automatically processed text:**", normalized)
+            raw_comment = comment.strip()
+            normalized = process_text(raw_comment) if enable_normalization else raw_comment
+            if enable_normalization and normalized != raw_comment:
+                st.write("**Text after robust normalization:**", normalized)
             rows = []
             errors = []
             for selection in OPTIONS:
