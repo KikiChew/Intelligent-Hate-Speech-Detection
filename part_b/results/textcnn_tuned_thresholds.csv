@@ -1,0 +1,7 @@
+label,threshold
+toxic,0.4
+severe_toxic,0.15000000000000002
+obscene,0.35000000000000003
+threat,0.05
+insult,0.35000000000000003
+identity_hate,0.15000000000000002
