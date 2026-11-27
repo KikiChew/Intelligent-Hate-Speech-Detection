@@ -1,0 +1,5 @@
+split,tn,fp,fn,tp
+train,12664,826,585,10863
+validation,1239,214,207,1026
+test,1238,215,215,1019
+mybully_external,476,149,160,374

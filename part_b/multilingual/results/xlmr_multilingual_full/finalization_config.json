@@ -1,0 +1,7 @@
+{
+  "checkpoint": "C:\\Users\\Kiki Chew\\Documents\\Intelligent-Hate-Speech-Detection\\part_b\\multilingual\\results\\xlmr_multilingual\\checkpoints\\checkpoint-3118",
+  "max_length": 64,
+  "batch_size": 1,
+  "train_set_evaluated": false,
+  "note": "Evaluation/export only; no training performed."
+}

@@ -1,0 +1,11 @@
+split,dataset,hate_label,rows
+train,Bilingual_MS_EN,0,11624
+train,Bilingual_MS_EN,1,9864
+train,MYBully,0,1866
+train,MYBully,1,1584
+validation,Bilingual_MS_EN,0,1453
+validation,Bilingual_MS_EN,1,1233
+test,Bilingual_MS_EN,0,1453
+test,Bilingual_MS_EN,1,1234
+mybully_external_validation,MYBully,0,625
+mybully_external_validation,MYBully,1,534

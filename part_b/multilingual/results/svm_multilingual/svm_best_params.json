@@ -1,0 +1,19 @@
+{
+  "model": "TF-IDF word+character n-gram LinearSVC",
+  "best_C": 0.25,
+  "threshold_type": "decision_function (NOT probability)",
+  "best_validation_threshold": 0.0,
+  "input_data_dir": "C:\\Users\\Kiki Chew\\Documents\\Intelligent-Hate-Speech-Detection\\part_b\\multilingual\\results",
+  "n_train": 24938,
+  "validation_selection_metric": "macro_f1",
+  "word_vocabulary": 20000,
+  "char_vocabulary": 30000,
+  "evaluated_splits": [
+    "train",
+    "validation",
+    "test",
+    "mybully_external"
+  ],
+  "selection_note": "C and threshold picked on bilingual validation only; test/external are evaluation-only.",
+  "created_utc": "2026-11-26T09:22:51.491778+00:00"
+}

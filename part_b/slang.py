@@ -1,203 +1,153 @@
-"""Conservative internet-slang expansion for OCR/NLP experiments.
+"""Dataset-driven slang normalization for Sentinel AI.
 
-Only whole-token matches are expanded. The dictionary is not a toxicity labeler,
-and ambiguous abbreviations are deliberately excluded. Keep the original text
-available: normalization can LOWER model quality if it changes the distribution.
+Source: https://www.kaggle.com/datasets/gowrishankarp/chat-slang-abbreviations-acronyms
+
+No slang dictionary is hard-coded. Keep Kaggle dataset files inside
+part_b/data/slang/ (JSON preferred, CSV also accepted).
+
+Public backward-compatible API: normalize_slang(text: str) -> str
 """
+from __future__ import annotations
+
+import csv
+import json
 import re
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
 
-# Expand only relatively unambiguous internet terms. Keep expansions lowercase
-# because the downstream models already perform their own case normalization.
-SLANG = {
-    # Pronouns, casual chat, contractions
-    'u': 'you',
-    'ya': 'you',
-    'yall': 'you all',
-    'yalll': 'you all',
-    'im': 'i am',
-    'ive': 'i have',
-    'ill': 'i will',
-    'dont': 'do not',
-    'doesnt': 'does not',
-    'didnt': 'did not',
-    'cant': 'cannot',
-    'wont': 'will not',
-    'isnt': 'is not',
-    'arent': 'are not',
-    'wasnt': 'was not',
-    'werent': 'were not',
-    'couldnt': 'could not',
-    'wouldnt': 'would not',
-    'shouldnt': 'should not',
-    'gonna': 'going to',
-    'wanna': 'want to',
-    'gotta': 'got to',
-    'lemme': 'let me',
-    'gimme': 'give me',
-    'kinda': 'kind of',
-    'sorta': 'sort of',
-    'cuz': 'because',
-    'coz': 'because',
-    'cos': 'because',
-    'bc': 'because',
-    'bcz': 'because',
-    'bcos': 'because',
-    'tho': 'though',
-    'thru': 'through',
-    'pls': 'please',
-    'plz': 'please',
-    'plss': 'please',
-    'thx': 'thanks',
-    'thnx': 'thanks',
-    'ty': 'thank you',
-    'tysm': 'thank you so much',
-    'yw': 'you are welcome',
-    'np': 'no problem',
-    'nvm': 'never mind',
-    'nm': 'not much',
-    'sry': 'sorry',
-    'soz': 'sorry',
-    'ppl': 'people',
-    'msg': 'message',
-    'msgs': 'messages',
-    'dm': 'direct message',
-    'dms': 'direct messages',
-    'pm': 'private message',
-    'irl': 'in real life',
-    'tbh': 'to be honest',
-    'ngl': 'not going to lie',
-    'imo': 'in my opinion',
-    'imho': 'in my humble opinion',
-    'idk': 'i do not know',
-    'idc': 'i do not care',
-    'ik': 'i know',
-    'ikr': 'i know right',
-    'afaik': 'as far as i know',
-    'fyi': 'for your information',
-    'btw': 'by the way',
-    'btdubs': 'by the way',
-    'asap': 'as soon as possible',
-    'brb': 'be right back',
-    'bbl': 'be back later',
-    'gtg': 'got to go',
-    'g2g': 'got to go',
-    'ttyl': 'talk to you later',
-    'ttys': 'talk to you soon',
-    'cya': 'see you',
-    'cu': 'see you',
-    'gn': 'good night',
-    'gm': 'good morning',
-    'hru': 'how are you',
-    'hbu': 'how about you',
-    'wbu': 'what about you',
-    'wyd': 'what are you doing',
-    'wya': 'where are you at',
-    'wym': 'what do you mean',
-    'wdym': 'what do you mean',
-    'wth': 'what the hell',
-    'wtf': 'what the fuck',
-    'omg': 'oh my god',
-    'omfg': 'oh my fucking god',
-    'omw': 'on my way',
-    'rn': 'right now',
-    'atm': 'at the moment',
-    'tmi': 'too much information',
-    'fomo': 'fear of missing out',
-    'iykyk': 'if you know you know',
-    'smh': 'shaking my head',
-    'smfh': 'shaking my fucking head',
-    'lol': 'laughing out loud',
-    'lmao': 'laughing my ass off',
-    'lmfao': 'laughing my fucking ass off',
-    'rofl': 'rolling on the floor laughing',
-    'roflmao': 'rolling on the floor laughing my ass off',
-    'jk': 'just kidding',
-    'jkjk': 'just kidding',
-    'frfr': 'for real for real',
-    'istg': 'i swear to god',
-    'ong': 'on god',
-    'sus': 'suspicious',
-    'afk': 'away from keyboard',
-    'gg': 'good game',
-    'ggwp': 'good game well played',
-    'glhf': 'good luck have fun',
-    'lmk': 'let me know',
-    'hmu': 'hit me up',
-    'ily': 'i love you',
-    'ilysm': 'i love you so much',
-    'ily2': 'i love you too',
-    'ilyt': 'i love you too',
-    'bff': 'best friends forever',
-    'bf': 'boyfriend',
-    'gf': 'girlfriend',
-    'ootd': 'outfit of the day',
-    'tbt': 'throwback thursday',
-    'pov': 'point of view',
-    'grwm': 'get ready with me',
-    'fyp': 'for you page',
-    'icymi': 'in case you missed it',
-    'nsfw': 'not safe for work',
-    'sfw': 'safe for work',
-    'ama': 'ask me anything',
-    'eli5': 'explain like i am five',
-    'tl;dr': 'too long did not read',
-    'tldr': 'too long did not read',
-    'faq': 'frequently asked questions',
-    'op': 'original poster',
-    'oc': 'original content',
-    'sm': 'social media',
-    'pfp': 'profile picture',
-    'dp': 'display picture',
-    # Offensive / harmful expressions: expand for lexical analysis, never
-    # assume the expansion alone proves toxicity.
-    'stfu': 'shut the fuck up',
-    'gtfo': 'get the fuck out',
-    'gfy': 'go fuck yourself',
-    'fyou': 'fuck you',
-    'fuk': 'fuck',
-    'fck': 'fuck',
-    'fk': 'fuck',
-    'fkn': 'fucking',
-    'fkin': 'fucking',
-    'fcking': 'fucking',
-    'fuking': 'fucking',
-    'mf': 'motherfucker',
-    'mfer': 'motherfucker',
-    'mofo': 'motherfucker',
-    'bs': 'bullshit',
-    'bullsh*t': 'bullshit',
-    'pos': 'piece of shit',
-    'sob': 'son of a bitch',
-    'b1tch': 'bitch',
-    'biatch': 'bitch',
-    'bish': 'bitch',
-    'a**hole': 'asshole',
-    'ahole': 'asshole',
-    'azzhole': 'asshole',
-    'dumbass': 'dumb ass',
-    'kys': 'kill yourself',
-    # Not automatically expanded: 'ur' (your/you're), 'r' (are/letter),
-    # 'fr' (for real/France), 'af' (as fuck/Afghanistan abbreviation),
-    # 'id' (identity / i'd), 'ig' (Instagram / I guess), 'bt' etc.
-}
-
-# Entries with punctuation such as tl;dr need special matching. Longer entries
-# are checked before shorter entries. Non-letter alphanumerics are supported.
-_TERMS = sorted(SLANG, key=len, reverse=True)
-_PATTERN = re.compile(r'(?<!\w)(?:' + '|'.join(re.escape(x) for x in _TERMS) + r')(?!\w)', re.IGNORECASE)
+DATASET_DIR = Path(__file__).resolve().parent / "data" / "slang"
+DATASET_SOURCE = "https://www.kaggle.com/datasets/gowrishankarp/chat-slang-abbreviations-acronyms"
+# Do not transform URLs, email addresses, or @mentions.
+PROTECTED_PATTERN = re.compile(r"https?://[^\s]+|www\.[^\s]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|@[A-Za-z0-9_]+", re.I)
 
 
-def normalize_slang(text):
-    """Expand known slang without matching inside other words.
+def _valid_pair(abbrev: Any, expansion: Any) -> tuple[str, str] | None:
+    if not isinstance(abbrev, str) or not isinstance(expansion, str):
+        return None
+    short = " ".join(abbrev.strip().split()).lower()
+    full = " ".join(expansion.strip().split())
+    if (not short or not full or len(short) > 50 or len(full) > 250
+            or short == full.lower() or not re.search(r"[a-z0-9]", short)
+            or "\n" in short or "\n" in full):
+        return None
+    return short, full
 
-    Original punctuation is kept. For reproducible comparisons, do not
-    normalize only at inference unless that experiment is being evaluated.
-    """
-    if text is None:
-        return ''
-    return _PATTERN.sub(lambda m: SLANG[m.group(0).lower()], str(text))
+
+def _pairs_from_json(data: Any) -> list[tuple[str, str]]:
+    # Kaggle-derived copies have appeared as {"2day":"today"} and
+    # occasionally {"root": {"2day":"today"}}.
+    if isinstance(data, dict):
+        if "root" in data and isinstance(data["root"], (dict, list)):
+            return _pairs_from_json(data["root"])
+        if "data" in data and isinstance(data["data"], (dict, list)):
+            return _pairs_from_json(data["data"])
+        result = []
+        for key, value in data.items():
+            if isinstance(value, str):
+                pair = _valid_pair(key, value)
+                if pair:
+                    result.append(pair)
+            elif isinstance(value, dict):
+                meaning = next((value[k] for k in ("meaning", "full_form", "expansion", "full", "original") if isinstance(value.get(k), str)), None)
+                pair = _valid_pair(key, meaning)
+                if pair:
+                    result.append(pair)
+        return result
+    if isinstance(data, list):
+        result = []
+        for row in data:
+            if not isinstance(row, dict):
+                continue
+            lowered = {str(k).strip().lower(): v for k, v in row.items()}
+            a = next((lowered[k] for k in ("slang", "abbreviation", "acronym", "short_form", "shortform", "short", "term") if k in lowered), None)
+            b = next((lowered[k] for k in ("meaning", "full_form", "expansion", "original", "full", "definition") if k in lowered), None)
+            pair = _valid_pair(a, b)
+            if pair:
+                result.append(pair)
+        return result
+    return []
 
 
-def slang_stats():
-    """Return the number of supported entries for experiment documentation."""
-    return len(SLANG)
+def _pairs_from_csv(path: Path) -> list[tuple[str, str]]:
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            return []
+        result = []
+        for row in reader:
+            lowered = {str(k).strip().lower(): v for k, v in row.items() if k is not None}
+            a = next((lowered[k] for k in ("slang", "abbreviation", "acronym", "short_form", "shortform", "short", "term") if k in lowered), None)
+            b = next((lowered[k] for k in ("meaning", "full_form", "expansion", "original", "full", "definition") if k in lowered), None)
+            pair = _valid_pair(a, b)
+            if pair:
+                result.append(pair)
+        return result
+
+
+@lru_cache(maxsize=1)
+def load_slang_mapping() -> dict[str, str]:
+    """Load abbreviation mappings from Kaggle dataset files; never a hard-coded list."""
+    files = sorted(DATASET_DIR.glob("*.json")) + sorted(DATASET_DIR.glob("*.csv"))
+    if not files:
+        raise FileNotFoundError(
+            f"Slang dataset not found at {DATASET_DIR}. Download the Kaggle "
+            f"dataset ({DATASET_SOURCE}) and extract its .json/.csv file here."
+        )
+    mapping: dict[str, str] = {}
+    for path in files:
+        try:
+            if path.suffix.lower() == ".json":
+                with path.open("r", encoding="utf-8-sig") as f:
+                    pairs = _pairs_from_json(json.load(f))
+            else:
+                pairs = _pairs_from_csv(path)
+        except (OSError, UnicodeError, json.JSONDecodeError, csv.Error) as exc:
+            raise ValueError(f"Cannot read slang dataset {path.name}: {exc}") from exc
+        for short, full in pairs:
+            mapping.setdefault(short, full)
+    if not mapping:
+        raise ValueError(f"No valid slang mappings found in {DATASET_DIR}. Check the dataset file format.")
+    return mapping
+
+
+@lru_cache(maxsize=1)
+def _substitution_pattern() -> re.Pattern[str]:
+    terms = sorted(load_slang_mapping(), key=lambda x: (-len(x), x))
+    # Whole-term matches, including phrases and alphanumeric chat terms.
+    escaped = "|".join(re.escape(t).replace(r"\ ", r"\s+") for t in terms)
+    return re.compile(r"(?<!\w)(?:" + escaped + r")(?!\w)", re.I)
+
+
+def normalize_slang(text: str) -> str:
+    """Expand matching abbreviations; preserve unrecognized text and punctuation."""
+    if not isinstance(text, str):
+        return text
+    if not text.strip():
+        return text
+    mapping = load_slang_mapping()
+    pattern = _substitution_pattern()
+    protected = list(PROTECTED_PATTERN.finditer(text))
+    spans = [(m.start(), m.end()) for m in protected]
+
+    def replace(match: re.Match[str]) -> str:
+        a, b = match.span()
+        if any(a < end and b > start for start, end in spans):
+            return match.group(0)
+        key = " ".join(match.group(0).lower().split())
+        return mapping.get(key, match.group(0))
+
+    return pattern.sub(replace, text)
+
+
+def get_slang_stats() -> dict[str, Any]:
+    """Useful for displaying dataset provenance/coverage in the Streamlit UI."""
+    mapping = load_slang_mapping()
+    return {"entries": len(mapping), "source": DATASET_SOURCE,
+            "files": [p.name for p in sorted(DATASET_DIR.glob("*.json")) + sorted(DATASET_DIR.glob("*.csv"))]}
+
+
+if __name__ == "__main__":
+    print("Dataset:", get_slang_stats())
+    for sample in ("idk why u said that lol", "stfu bro", "Visit https://example.com/idk"):
+        print(sample, "=>", normalize_slang(sample))

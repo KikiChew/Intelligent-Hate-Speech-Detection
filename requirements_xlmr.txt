@@ -1,0 +1,10 @@
+# Install CUDA-enabled PyTorch separately in .venv-xlmr (already done).
+# Keep versions compatible with the original Trainer script.
+transformers>=4.46,<5
+datasets>=2.19,<5
+accelerate>=1.0
+pandas>=2.0
+numpy>=1.26
+scikit-learn>=1.4
+safetensors>=0.4
+sentencepiece>=0.2

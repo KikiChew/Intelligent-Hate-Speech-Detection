@@ -1,0 +1,25 @@
+{
+  "random_state": 42,
+  "splits": {
+    "train": 24938,
+    "validation": 2686,
+    "test": 2687,
+    "mybully_external_validation": 1159
+  },
+  "label_semantics_warning": "MYBully Hate and Bilingual binary hate may not have equivalent annotation guidelines. Treat merged model as exploratory.",
+  "bilingual_language_counts": {
+    "en": 13907,
+    "ms": 13078
+  },
+  "bilingual_source_counts": {
+    "HateXplain": 13609,
+    "Toxicity_Small": 5252,
+    "Snapshot": 4449,
+    "HateM": 3584,
+    "Supervised_sentiment": 91
+  },
+  "mybully_val_policy": "Original MYBully validation kept separate as external evaluation; any overlaps removed from train/bilingual.",
+  "manglish_policy": "No hate labels, used for EDA only; sentiment is NOT hate.",
+  "dedup_policy": "NFKC + casefold + whitespace; exact-ish matches only, not semantic near-duplicates.",
+  "test_policy": "The bilingual held-out test is created from original source data. No tuning on test."
+}

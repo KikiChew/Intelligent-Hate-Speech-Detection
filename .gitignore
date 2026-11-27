@@ -1,8 +1,10 @@
 # Local environment and Python cache
 .venv/
+.venv-xlmr/
 venv/
 __pycache__/
-*.py[cod]
+*.pyc
+.pytest_cache/
 .ipynb_checkpoints/
 .env
 .env.*
@@ -13,6 +15,10 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Training checkpoints (not final models)
+**/checkpoints/
+**/checkpoint-*/
+
 # Streamlit secrets
 .streamlit/secrets.toml
 
@@ -20,3 +26,14 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+
+
+# XLM-R large model weights
+/part_b/multilingual/results/xlmr_multilingual_full/model/model.safetensors
+
+# Old XLM-R checkpoints and sample model
+/part_b/multilingual/results/xlmr_multilingual/checkpoints/
+/part_b/multilingual/results/xlmr_multilingual/model/
+
+# Temporary evaluation files
+**/_eval_tmp/
